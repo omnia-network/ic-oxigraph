@@ -14,10 +14,5 @@ edition = "2021"
 rust-version = "1.60"
 
 [dependencies]
+ic-cdk = "0.7.4"
 nom = "7"
-
-[target.'cfg(all(target_family = "wasm", target_os = "unknown"))'.dependencies]
-js-sys = "0.3"
-
-[package.metadata.docs.rs]
-all-features = true

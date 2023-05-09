@@ -1,21 +1,13 @@
 [workspace]
 members = [
-    "js",
     "lib",
     "lib/oxrdf",
     "lib/oxsdatatypes",
     "lib/spargebra",
     "lib/sparesults",
-    "lib/sparql-smith",
-    "oxrocksdb-sys",
-    "python",
-    "server",
-    "testsuite"
+    "lib/sparql-smith"
 ]
 
 [profile.release]
 lto = true
 codegen-units = 1
-
-[profile.release.package.oxigraph_js]
-opt-level = "z"

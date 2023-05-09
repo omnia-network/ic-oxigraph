@@ -1,26 +1,16 @@
 [package]
-name = "oxigraph"
+name = "ic-oxigraph"
 version = "0.3.17-dev"
-authors = ["Tpt <thomas@pellissier-tanon.fr>"]
-license = "MIT OR Apache-2.0"
+license = "MIT"
 readme = "README.md"
-keywords = ["RDF", "SPARQL", "graph-database", "database"]
+keywords = ["RDF", "SPARQL", "graph-database", "database", "internet-computer", "dfinity"]
 categories = ["database-implementations"]
-repository = "https://github.com/oxigraph/oxigraph/tree/main/lib"
-homepage = "https://oxigraph.org/"
+repository = "https://github.com/omnia-network/ic-oxigraph/tree/main/lib"
 description = """
-a SPARQL database and RDF toolkit
+an RDF database running on the Internet Computer
 """
 edition = "2021"
 rust-version = "1.60"
-
-[package.metadata.docs.rs]
-all-features = true
-
-[features]
-default = []
-http_client = ["oxhttp", "oxhttp/rustls"]
-rocksdb_debug = []
 
 [dependencies]
 rand = "0.8"
@@ -42,21 +32,8 @@ oxrdf = { version = "0.1.6-dev", path="oxrdf", features = ["rdf-star", "oxsdatat
 oxsdatatypes = { version = "0.1.2-dev", path="oxsdatatypes" }
 spargebra = { version = "0.2.8-dev", path="spargebra", features = ["rdf-star", "sep-0002", "sep-0006"] }
 sparesults = { version = "0.1.8-dev", path="sparesults", features = ["rdf-star"] }
+ic-cdk = "0.7.4"
+getrandom = { version = "0.2", features = ["custom"] }
 
-[target.'cfg(not(target_family = "wasm"))'.dependencies]
-libc = "0.2"
-oxrocksdb-sys = { version = "0.3.17-dev", path="../oxrocksdb-sys" }
-oxhttp = { version = "0.1", optional = true }
-
-[target.'cfg(all(target_family = "wasm", target_os = "unknown"))'.dependencies]
-getrandom = { version = "0.2", features = ["js"] }
-js-sys = "0.3"
-
-[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
-criterion = "0.4"
-oxhttp = "0.1"
-zstd = "0.12"
-
-[[bench]]
-name = "store"
-harness = false
+[package.metadata.docs.rs]
+default-target = "wasm32-unknown-unknown"

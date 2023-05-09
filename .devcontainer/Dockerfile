@@ -4,18 +4,9 @@
 ARG VARIANT="bullseye"
 FROM mcr.microsoft.com/vscode/devcontainers/rust:0-${VARIANT}
 
-# [Optional] Uncomment this section to install additional packages.
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends \
-        python3 \
-        python3-venv \
-        python-is-python3 \
         libclang-dev
 
-ENV VIRTUAL_ENV=/opt/venv
-RUN python -m venv $VIRTUAL_ENV
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-RUN pip install --no-cache-dir -r python/requirements.dev.txt
-
-# Change owner to the devcontainer user
-RUN chown -R 1000:1000 $VIRTUAL_ENV
+# the wasm target for the Internet Computer
+RUN rustup target add wasm32-unknown-unknown

@@ -11,6 +11,11 @@ use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use std::time::SystemTimeError;
 
+/// Returns the Unix milliseconds in float64
+fn now() -> f64 {
+    (ic_cdk::api::time() / 1_000_000) as f64
+}
+
 /// [XML Schema `dateTime` datatype](https://www.w3.org/TR/xmlschema11-2/#dateTime)
 ///
 /// It encodes the value using a number of seconds from the Gregorian calendar era using a [`Decimal`]
@@ -1644,7 +1649,7 @@ impl Timestamp {
 fn since_unix_epoch() -> Result<Duration, DateTimeError> {
     Ok(Duration::new(
         0,
-        Decimal::try_from(crate::Double::from(js_sys::Date::now() / 1000.))
+        Decimal::try_from(crate::Double::from(now() / 1000.))
             .map_err(|_| DATE_TIME_OVERFLOW)?,
     ))
 }
@@ -1687,7 +1692,7 @@ fn normalize_day(yr: i64, mo: i64, mut da: i64) -> Option<(i64, u8, u8)> {
             yr = yr2;
             mo = mo2;
             da = da.checked_add(days_in_month(Some(yr), mo).into())?;
-        } else if da > days_in_month(Some(yr), mo).into() {
+        } else if da > <u8 as std::convert::Into<i64>>::into(days_in_month(Some(yr), mo)) {
             da = da.checked_sub(days_in_month(Some(yr), mo).into())?;
             let (yr2, mo2) = normalize_month(yr, i64::from(mo).checked_add(1)?)?;
             yr = yr2;

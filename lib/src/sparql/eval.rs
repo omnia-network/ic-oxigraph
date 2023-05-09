@@ -5,6 +5,7 @@ use crate::sparql::dataset::DatasetView;
 use crate::sparql::error::EvaluationError;
 use crate::sparql::model::*;
 use crate::sparql::plan::*;
+use crate::sparql::time::now;
 use crate::sparql::service::ServiceHandler;
 use crate::storage::numeric_encoder::*;
 use crate::storage::small_string::SmallString;
@@ -4812,12 +4813,12 @@ pub struct Timer {
 impl Timer {
     pub fn now() -> Self {
         Self {
-            timestamp_ms: js_sys::Date::now(),
+            timestamp_ms: now(),
         }
     }
 
     pub fn elapsed(&self) -> StdDuration {
-        StdDuration::from_secs_f64((js_sys::Date::now() - self.timestamp_ms) / 1000.)
+        StdDuration::from_secs_f64((now() - self.timestamp_ms) / 1000.)
     }
 }
 

@@ -20,3 +20,13 @@ pub mod model {
         SubjectRef, Term, TermParseError, TermRef, Triple, TripleRef,
     };
 }
+
+use getrandom::{register_custom_getrandom, Error};
+
+fn getrandom_from_timestamp(buf: &mut [u8]) -> Result<(), Error> {
+    let timestamp_bytes = ic_cdk::api::time().to_be_bytes();
+    buf[..8].copy_from_slice(&timestamp_bytes);
+    Ok(())
+}
+
+register_custom_getrandom!(getrandom_from_timestamp);

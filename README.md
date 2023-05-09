@@ -1,78 +1,53 @@
 # Oxigraph
 
-[![Latest Version](https://img.shields.io/crates/v/oxigraph.svg)](https://crates.io/crates/oxigraph)
-[![Released API docs](https://docs.rs/oxigraph/badge.svg)](https://docs.rs/oxigraph)
-[![PyPI](https://img.shields.io/pypi/v/pyoxigraph)](https://pypi.org/project/pyoxigraph/)
-[![npm](https://img.shields.io/npm/v/oxigraph)](https://www.npmjs.com/package/oxigraph)
-[![actions status](https://github.com/oxigraph/oxigraph/workflows/build/badge.svg)](https://github.com/oxigraph/oxigraph/actions)
-[![dependency status](https://deps.rs/repo/github/oxigraph/oxigraph/status.svg)](https://deps.rs/repo/github/oxigraph/oxigraph)
-[![Gitter](https://badges.gitter.im/oxigraph/community.svg)](https://gitter.im/oxigraph/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
-[![Twitter URL](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Ftwitter.com%2Foxigraph)](https://twitter.com/oxigraph)
+An untested attempt to port [Oxigraph](https://github.com/oxigraph/oxigraph) to the [Internet Computer](https://internetcomputer.org/), in order to host an RDF database fully on-chain.
+The repository is a fork of [oxigraph](https://github.com/oxigraph/oxigraph) and has been adapted to be compiled to [`wasm32-unknown-unknown`](https://doc.rust-lang.org/stable/nightly-rustc/rustc_target/spec/wasm32_unknown_unknown/index.html) Rust target.
+For usage reference, see Oxigraph's docs at https://docs.rs/oxigraph.
 
-Oxigraph is a graph database implementing the [SPARQL](https://www.w3.org/TR/sparql11-overview/) standard.
-
-Its goal is to provide a compliant, safe, and fast graph database based on the [RocksDB](https://rocksdb.org/) key-value store.
-It is written in Rust.
-It also provides a set of utility functions for reading, writing, and processing RDF files.
-
-Oxigraph is in heavy development and SPARQL query evaluation has not been optimized yet.
-The development roadmap is using [GitHub milestones](https://github.com/oxigraph/oxigraph/milestones?direction=desc&sort=completeness&state=open).
-Oxigraph internal design [is described on the wiki](https://github.com/oxigraph/oxigraph/wiki/Architecture).
-
-It is split into multiple parts:
-
+For this porting, relevant features from Oxigraph are:
 - [The database written as a Rust library](https://crates.io/crates/oxigraph). Its source code is in the `lib` directory.
-  [![Latest Version](https://img.shields.io/crates/v/oxigraph.svg)](https://crates.io/crates/oxigraph)
-  [![Released API docs](https://docs.rs/oxigraph/badge.svg)](https://docs.rs/oxigraph)
-- [`pyoxigraph` that exposes Oxigraph to the Python world](https://pyoxigraph.readthedocs.io/). Its source code is in the `python` directory. [![PyPI](https://img.shields.io/pypi/v/pyoxigraph)](https://pypi.org/project/pyoxigraph/)
-- [JavaScript bindings for Oxigraph](https://www.npmjs.com/package/oxigraph). WebAssembly is used to package Oxigraph into a NodeJS compatible NPM package. Its source code is in the `js` directory.
-  [![npm](https://img.shields.io/npm/v/oxigraph)](https://www.npmjs.com/package/oxigraph)
-- [Oxigraph server](https://crates.io/crates/oxigraph_server) that provides a standalone binary of a web server implementing the [SPARQL 1.1 Protocol](https://www.w3.org/TR/sparql11-protocol/) and the [SPARQL 1.1 Graph Store Protocol](https://www.w3.org/TR/sparql11-http-rdf-update/). Its source code is in the `server` directory.
-  [![Latest Version](https://img.shields.io/crates/v/oxigraph_server.svg)](https://crates.io/crates/oxigraph_server)
+- it implements the following specifications:
+  - [SPARQL 1.1 Query](https://www.w3.org/TR/sparql11-query/), [SPARQL 1.1 Update](https://www.w3.org/TR/sparql11-update/), and [SPARQL 1.1 Federated Query](https://www.w3.org/TR/sparql11-federated-query/).
+  - [Turtle](https://www.w3.org/TR/turtle/), [TriG](https://www.w3.org/TR/trig/), [N-Triples](https://www.w3.org/TR/n-triples/), [N-Quads](https://www.w3.org/TR/n-quads/), and [RDF XML](https://www.w3.org/TR/rdf-syntax-grammar/) RDF serialization formats for both data ingestion and retrieval using the [Rio library](https://github.com/oxigraph/rio).
+  - [SPARQL Query Results XML Format](http://www.w3.org/TR/rdf-sparql-XMLres/), [SPARQL 1.1 Query Results JSON Format](https://www.w3.org/TR/sparql11-results-json/) and [SPARQL 1.1 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql11-results-csv-tsv/).
 
-Oxigraph implements the following specifications:
+## What's been ported
 
-- [SPARQL 1.1 Query](https://www.w3.org/TR/sparql11-query/), [SPARQL 1.1 Update](https://www.w3.org/TR/sparql11-update/), and [SPARQL 1.1 Federated Query](https://www.w3.org/TR/sparql11-federated-query/).
-- [Turtle](https://www.w3.org/TR/turtle/), [TriG](https://www.w3.org/TR/trig/), [N-Triples](https://www.w3.org/TR/n-triples/), [N-Quads](https://www.w3.org/TR/n-quads/), and [RDF XML](https://www.w3.org/TR/rdf-syntax-grammar/) RDF serialization formats for both data ingestion and retrieval using the [Rio library](https://github.com/oxigraph/rio).
-- [SPARQL Query Results XML Format](http://www.w3.org/TR/rdf-sparql-XMLres/), [SPARQL 1.1 Query Results JSON Format](https://www.w3.org/TR/sparql11-results-json/) and [SPARQL 1.1 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql11-results-csv-tsv/).
+The main problems for Oxigraph to run on the Internet Computer were the [Date::now()](https://docs.rs/js-sys/latest/js_sys/struct.Date.html#method.now) function from [js_sys](https://crates.io/crates/js_sys) crate and the random number generator from [rand](https://crates.io/crates/rand) crate.
 
-A preliminary benchmark [is provided](bench/README.md). There is also [a document describing Oxigraph technical architecture](https://github.com/oxigraph/oxigraph/wiki/Architecture).
+### `Date::now()`
+Using [time](https://docs.rs/ic-cdk/latest/ic_cdk/api/fn.time.html) from ic-cdk api, this function has been substituted with:
+```rust
+pub fn now() -> f64 {
+  (ic_cdk::api::time() / 1_000_000) as f64
+}
+```
 
-When cloning this codebase, don't forget to clone the submodules using
-`git clone --recursive https://github.com/oxigraph/oxigraph.git` to clone the repository including submodules or
-`git submodule update --init` to add the submodules to the already cloned repository.
+### Random Number Generator
+Since the randomness required doesn't need to be cryptographically secure (basically used only to generate temporary helpers and blank nodes), substituting it with the current time can be enough:
+```rust
+use getrandom::{register_custom_getrandom, Error};
 
+fn getrandom_from_timestamp(buf: &mut [u8]) -> Result<(), Error> {
+    let timestamp_bytes = ic_cdk::api::time().to_be_bytes();
+    buf[..8].copy_from_slice(&timestamp_bytes);
+    Ok(())
+}
+
+register_custom_getrandom!(getrandom_from_timestamp);
+```
+> The problem still remains for the UUID generator, becuase the timestamp "random" generation doesn't make it compliant. As a temporary fix, it could be **removed** as a temporary fix, as suggested in [this comment](https://github.com/oxigraph/oxigraph/issues/471#issuecomment-1517703078).
 
 ## Help
 
-Feel free to use [GitHub discussions](https://github.com/oxigraph/oxigraph/discussions) or [the Gitter chat](https://gitter.im/oxigraph/community) to ask questions or talk about Oxigraph.
-[Bug reports](https://github.com/oxigraph/oxigraph/issues) are also very welcome.
-
-If you need advanced support or are willing to pay to get some extra features, feel free to reach out to [Tpt](https://github.com/Tpt/).
-
+See [Oxigraph's GitHub discussions](https://github.com/oxigraph/oxigraph/discussions) or [the Oxigraph's Gitter chat](https://gitter.im/oxigraph/community) to ask questions or talk about Oxigraph.
+If you want to report bugs, use [Oxigraph's Bug reports](https://github.com/oxigraph/oxigraph/issues).
 
 ## License
 
-This project is licensed under either of
-
-- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or
-  http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or
-  http://opensource.org/licenses/MIT)
-
-at your option.
+This project is licensed under MIT license ([LICENSE](LICENSE) or http://opensource.org/licenses/MIT).
 
 ### Contribution
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Oxigraph by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
+This is an untested implementation that needs a lot of help from the community! Feel free to open PRs :).
 
-
-## Sponsors
-
-* [RelationLabs](https://relationlabs.ai/) that is building [Relation-Graph](https://github.com/relationlabs/Relation-Graph), a SPARQL database module for the [Substrate blockchain platform](https://substrate.io/) based on Oxigraph.
-* [Field 33](https://field33.com) that is building [an ontology management plateform](https://plow.pm/).
-* [Magnus Bakken](https://github.com/magbak) who is building [chrontext](https://github.com/magbak/chrontext), providing a SPARQL query endpoint on top of joint RDF and time series databases.
-* [ACE IoT Solutions](https://aceiotsolutions.com/), a building IOT platform.
-* [Albin Larsson](https://byabbe.se/) who is building [GovDirectory](https://www.govdirectory.org/), a directory of public agencies based on Wikidata.
-
-And [others](https://github.com/sponsors/Tpt). Many thanks to them!

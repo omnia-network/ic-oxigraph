@@ -11,6 +11,7 @@ mod model;
 mod plan;
 mod plan_builder;
 mod service;
+mod time;
 mod update;
 
 use crate::model::{NamedNode, Term};
