@@ -135,3 +135,5 @@ rustflags = [
     "-Wclippy::wildcard-dependencies",
     "-Wclippy::zero-sized-map-values",
 ]
+# default build target for the IC
+target = "wasm32-unknown-unknown"
