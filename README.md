@@ -26,12 +26,29 @@ pub fn now() -> f64 {
 ### Random Number Generator
 Since the randomness required doesn't need to be cryptographically secure (basically used only to generate temporary helpers and blank nodes), substituting it with the current time can be enough:
 ```rust
+use core::num::NonZeroU32;
 use getrandom::{register_custom_getrandom, Error};
+use rand::Rng;
+use rand_chacha::{
+    rand_core::SeedableRng,
+    ChaCha20Rng,
+};
+
+// a custom error code not well thought out
+const CUSTOM_ERROR_CODE: u32 = Error::CUSTOM_START + 1;
 
 fn getrandom_from_timestamp(buf: &mut [u8]) -> Result<(), Error> {
-    let timestamp_bytes = ic_cdk::api::time().to_be_bytes();
-    buf[..8].copy_from_slice(&timestamp_bytes);
-    Ok(())
+    let timestamp = ic_cdk::api::time();
+    let mut rng = ChaCha20Rng::seed_from_u64(timestamp);
+
+    rng.try_fill(buf).map_err(|err| {
+        if let Some(code) = err.code() {
+            Error::from(code)
+        } else {
+            let code = NonZeroU32::new(CUSTOM_ERROR_CODE).unwrap();
+            Error::from(code)
+        }
+    })
 }
 
 register_custom_getrandom!(getrandom_from_timestamp);
