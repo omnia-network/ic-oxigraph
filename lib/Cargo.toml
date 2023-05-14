@@ -32,13 +32,13 @@ oxrdf = { version = "0.1.6-dev", path="oxrdf", features = ["rdf-star", "oxsdatat
 oxsdatatypes = { version = "0.1.2-dev", path="oxsdatatypes" }
 spargebra = { version = "0.2.8-dev", path="spargebra", features = ["rdf-star", "sep-0002", "sep-0006"] }
 sparesults = { version = "0.1.8-dev", path="sparesults", features = ["rdf-star"] }
-ic-cdk = "0.7.4"
+ic-cdk = { version = "0.7.4" }
 getrandom = { version = "0.2", features = ["custom"] }
-rand_chacha = "0.3.1"
-ic-cdk-timers = "0.1.2"
+ic-cdk-timers = { version = "0.1.2", optional = true }
 
 [package.metadata.docs.rs]
 default-target = "wasm32-unknown-unknown"
+all-features = true
 
 [features]
-custom-rng = []
+internal-rng = ['dep:ic-cdk-timers']

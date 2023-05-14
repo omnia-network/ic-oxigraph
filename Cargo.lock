@@ -497,7 +497,6 @@ dependencies = [
  "oxrdf",
  "oxsdatatypes",
  "rand",
- "rand_chacha",
  "regex",
  "rio_api",
  "rio_turtle",

@@ -21,13 +21,13 @@ pub mod model {
     };
 }
 
-#[cfg(not(feature = "custom-rng"))]
+#[cfg(feature = "internal-rng")]
 use core::time::Duration;
-#[cfg(not(feature = "custom-rng"))]
+#[cfg(feature = "internal-rng")]
 use getrandom::{register_custom_getrandom, Error};
-#[cfg(not(feature = "custom-rng"))]
+#[cfg(feature = "internal-rng")]
 use ic_cdk::export::candid;
-#[cfg(not(feature = "custom-rng"))]
+#[cfg(feature = "internal-rng")]
 use rand::Rng;
 use rand::{rngs::StdRng, SeedableRng};
 use std::cell::RefCell;
@@ -36,7 +36,7 @@ thread_local! {
     /* flexible */ static _CDK_RNG_REF_CELL: RefCell<StdRng> = RefCell::new(SeedableRng::from_seed([0_u8; 32]));
 }
 
-#[cfg(not(feature = "custom-rng"))]
+#[cfg(feature = "internal-rng")]
 fn custom_getrandom(buf: &mut [u8]) -> Result<(), Error> {
     _CDK_RNG_REF_CELL.with(|rng_ref_cell| {
         let mut rng = rng_ref_cell.borrow_mut();
@@ -46,7 +46,7 @@ fn custom_getrandom(buf: &mut [u8]) -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(not(feature = "custom-rng"))]
+#[cfg(feature = "internal-rng")]
 fn rng_seed() {
     ic_cdk::spawn(async move {
         let result: ic_cdk::api::call::CallResult<(Vec<u8>,)> =
@@ -65,7 +65,7 @@ fn rng_seed() {
     });
 }
 
-#[cfg(not(feature = "custom-rng"))]
+#[cfg(feature = "internal-rng")]
 register_custom_getrandom!(custom_getrandom);
 
 /// Pass the **Random Number Generator** as a RefCell.
@@ -94,7 +94,7 @@ register_custom_getrandom!(custom_getrandom);
 ///     // other post_upgrade code like loading the stable memory into the state
 /// }
 /// ```
-#[cfg(feature = "custom-rng")]
+#[cfg(not(feature = "internal-rng"))]
 pub fn init(rng: &RefCell<StdRng>) {
     _CDK_RNG_REF_CELL.with(|rng_ref_cell| {
         *rng_ref_cell.borrow_mut() = rng.borrow().clone();
@@ -122,7 +122,7 @@ pub fn init(rng: &RefCell<StdRng>) {
 ///     // other post_upgrade code like loading the stable memory into the state
 /// }
 /// ```
-#[cfg(not(feature = "custom-rng"))]
+#[cfg(feature = "internal-rng")]
 pub fn init() {
     ic_cdk_timers::set_timer(Duration::new(0, 0), rng_seed);
 }
