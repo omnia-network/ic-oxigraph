@@ -1,10 +1,6 @@
 #![allow(clippy::same_name_method)]
-#[cfg(not(target_family = "wasm"))]
-use crate::model::Quad;
 use crate::model::{GraphNameRef, NamedOrBlankNodeRef, QuadRef, TermRef};
 use crate::storage::backend::{Reader, Transaction};
-#[cfg(not(target_family = "wasm"))]
-use crate::storage::binary_encoder::LATEST_STORAGE_VERSION;
 use crate::storage::binary_encoder::{
     decode_term, encode_term, encode_term_pair, encode_term_quad, encode_term_triple,
     write_gosp_quad, write_gpos_quad, write_gspo_quad, write_osp_quad, write_ospg_quad,
@@ -12,27 +8,9 @@ use crate::storage::binary_encoder::{
     WRITTEN_TERM_MAX_SIZE,
 };
 pub use crate::storage::error::{CorruptionError, LoaderError, SerializerError, StorageError};
-#[cfg(not(target_family = "wasm"))]
-use crate::storage::numeric_encoder::Decoder;
 use crate::storage::numeric_encoder::{insert_term, EncodedQuad, EncodedTerm, StrHash, StrLookup};
 use backend::{ColumnFamily, ColumnFamilyDefinition, Db, Iter};
-#[cfg(not(target_family = "wasm"))]
-use std::collections::VecDeque;
-#[cfg(not(target_family = "wasm"))]
-use std::collections::{HashMap, HashSet};
 use std::error::Error;
-#[cfg(not(target_family = "wasm"))]
-use std::mem::{swap, take};
-#[cfg(not(target_family = "wasm"))]
-use std::path::{Path, PathBuf};
-#[cfg(not(target_family = "wasm"))]
-use std::sync::atomic::{AtomicU64, Ordering};
-#[cfg(not(target_family = "wasm"))]
-use std::sync::Arc;
-#[cfg(not(target_family = "wasm"))]
-use std::thread::spawn;
-#[cfg(not(target_family = "wasm"))]
-use std::thread::JoinHandle;
 
 mod backend;
 mod binary_encoder;
@@ -51,17 +29,11 @@ const DSPO_CF: &str = "dspo";
 const DPOS_CF: &str = "dpos";
 const DOSP_CF: &str = "dosp";
 const GRAPHS_CF: &str = "graphs";
-#[cfg(not(target_family = "wasm"))]
-const DEFAULT_CF: &str = "default";
-#[cfg(not(target_family = "wasm"))]
-const DEFAULT_BULK_LOAD_BATCH_SIZE: usize = 1_000_000;
 
 /// Low level storage primitives
 #[derive(Clone)]
 pub struct Storage {
     db: Db,
-    #[cfg(not(target_family = "wasm"))]
-    default_cf: ColumnFamily,
     id2str_cf: ColumnFamily,
     spog_cf: ColumnFamily,
     posg_cf: ColumnFamily,
@@ -78,37 +50,6 @@ pub struct Storage {
 impl Storage {
     pub fn new() -> Result<Self, StorageError> {
         Self::setup(Db::new(Self::column_families())?)
-    }
-
-    #[cfg(not(target_family = "wasm"))]
-    pub fn open(path: &Path) -> Result<Self, StorageError> {
-        Self::setup(Db::open_read_write(Some(path), Self::column_families())?)
-    }
-
-    #[cfg(not(target_family = "wasm"))]
-    pub fn open_secondary(primary_path: &Path) -> Result<Self, StorageError> {
-        Self::setup(Db::open_secondary(
-            primary_path,
-            None,
-            Self::column_families(),
-        )?)
-    }
-
-    #[cfg(not(target_family = "wasm"))]
-    pub fn open_persistent_secondary(
-        primary_path: &Path,
-        secondary_path: &Path,
-    ) -> Result<Self, StorageError> {
-        Self::setup(Db::open_secondary(
-            primary_path,
-            Some(secondary_path),
-            Self::column_families(),
-        )?)
-    }
-
-    #[cfg(not(target_family = "wasm"))]
-    pub fn open_read_only(path: &Path) -> Result<Self, StorageError> {
-        Self::setup(Db::open_read_only(path, Self::column_families())?)
     }
 
     fn column_families() -> Vec<ColumnFamilyDefinition> {
@@ -185,8 +126,6 @@ impl Storage {
     #[allow(clippy::unnecessary_wraps, clippy::unwrap_in_result)]
     fn setup(db: Db) -> Result<Self, StorageError> {
         let this = Self {
-            #[cfg(not(target_family = "wasm"))]
-            default_cf: db.column_family(DEFAULT_CF).unwrap(),
             id2str_cf: db.column_family(ID2STR_CF).unwrap(),
             spog_cf: db.column_family(SPOG_CF).unwrap(),
             posg_cf: db.column_family(POSG_CF).unwrap(),
@@ -200,70 +139,7 @@ impl Storage {
             graphs_cf: db.column_family(GRAPHS_CF).unwrap(),
             db,
         };
-        #[cfg(not(target_family = "wasm"))]
-        this.migrate()?;
         Ok(this)
-    }
-
-    #[cfg(not(target_family = "wasm"))]
-    fn migrate(&self) -> Result<(), StorageError> {
-        let mut version = self.ensure_version()?;
-        if version == 0 {
-            // We migrate to v1
-            let mut graph_names = HashSet::new();
-            for quad in self.snapshot().quads() {
-                let quad = quad?;
-                if !quad.graph_name.is_default_graph() {
-                    graph_names.insert(quad.graph_name);
-                }
-            }
-            let mut graph_names = graph_names
-                .into_iter()
-                .map(|g| encode_term(&g))
-                .collect::<Vec<_>>();
-            graph_names.sort_unstable();
-            let mut stt_file = self.db.new_sst_file()?;
-            for k in graph_names {
-                stt_file.insert_empty(&k)?;
-            }
-            self.db
-                .insert_stt_files(&[(&self.graphs_cf, stt_file.finish()?)])?;
-            version = 1;
-            self.update_version(version)?;
-        }
-
-        match version {
-            _ if version < LATEST_STORAGE_VERSION => Err(CorruptionError::msg(format!(
-                "The RocksDB database is using the outdated encoding version {version}. Automated migration is not supported, please dump the store dataset using a compatible Oxigraph version and load it again using the current version"
-
-            )).into()),
-            LATEST_STORAGE_VERSION => Ok(()),
-            _ => Err(CorruptionError::msg(format!(
-                "The RocksDB database is using the too recent version {version}. Upgrade to the latest Oxigraph version to load this database"
-
-            )).into())
-        }
-    }
-
-    #[cfg(not(target_family = "wasm"))]
-    fn ensure_version(&self) -> Result<u64, StorageError> {
-        Ok(
-            if let Some(version) = self.db.get(&self.default_cf, b"oxversion")? {
-                u64::from_be_bytes(version.as_ref().try_into().map_err(|e| {
-                    CorruptionError::new(format!("Error while parsing the version key: {e}"))
-                })?)
-            } else {
-                self.update_version(LATEST_STORAGE_VERSION)?;
-                LATEST_STORAGE_VERSION
-            },
-        )
-    }
-
-    #[cfg(not(target_family = "wasm"))]
-    fn update_version(&self, version: u64) -> Result<(), StorageError> {
-        self.db
-            .insert(&self.default_cf, b"oxversion", &version.to_be_bytes())?;
-        self.db.flush(&self.default_cf)
     }
 
     pub fn snapshot(&self) -> StorageReader {
@@ -284,41 +160,6 @@ impl Storage {
                 storage: self,
             })
         })
-    }
-
-    #[cfg(not(target_family = "wasm"))]
-    pub fn flush(&self) -> Result<(), StorageError> {
-        self.db.flush(&self.default_cf)?;
-        self.db.flush(&self.gspo_cf)?;
-        self.db.flush(&self.gpos_cf)?;
-        self.db.flush(&self.gosp_cf)?;
-        self.db.flush(&self.spog_cf)?;
-        self.db.flush(&self.posg_cf)?;
-        self.db.flush(&self.ospg_cf)?;
-        self.db.flush(&self.dspo_cf)?;
-        self.db.flush(&self.dpos_cf)?;
-        self.db.flush(&self.dosp_cf)?;
-        self.db.flush(&self.id2str_cf)
-    }
-
-    #[cfg(not(target_family = "wasm"))]
-    pub fn compact(&self) -> Result<(), StorageError> {
-        self.db.compact(&self.default_cf)?;
-        self.db.compact(&self.gspo_cf)?;
-        self.db.compact(&self.gpos_cf)?;
-        self.db.compact(&self.gosp_cf)?;
-        self.db.compact(&self.spog_cf)?;
-        self.db.compact(&self.posg_cf)?;
-        self.db.compact(&self.ospg_cf)?;
-        self.db.compact(&self.dspo_cf)?;
-        self.db.compact(&self.dpos_cf)?;
-        self.db.compact(&self.dosp_cf)?;
-        self.db.compact(&self.id2str_cf)
-    }
-
-    #[cfg(not(target_family = "wasm"))]
-    pub fn backup(&self, target_directory: &Path) -> Result<(), StorageError> {
-        self.db.backup(target_directory)
     }
 }
 
@@ -641,17 +482,6 @@ impl StorageReader {
         }
     }
 
-    #[cfg(not(target_family = "wasm"))]
-    pub fn get_str(&self, key: &StrHash) -> Result<Option<String>, StorageError> {
-        Ok(self
-            .storage
-            .db
-            .get(&self.storage.id2str_cf, &key.to_be_bytes())?
-            .map(|v| String::from_utf8(v.into()))
-            .transpose()
-            .map_err(CorruptionError::new)?)
-    }
-
     #[cfg(target_family = "wasm")]
     pub fn get_str(&self, key: &StrHash) -> Result<Option<String>, StorageError> {
         Ok(self
@@ -662,129 +492,10 @@ impl StorageReader {
             .map_err(CorruptionError::new)?)
     }
 
-    #[cfg(not(target_family = "wasm"))]
-    pub fn contains_str(&self, key: &StrHash) -> Result<bool, StorageError> {
-        self.storage
-            .db
-            .contains_key(&self.storage.id2str_cf, &key.to_be_bytes())
-    }
-
     #[cfg(target_family = "wasm")]
     pub fn contains_str(&self, key: &StrHash) -> Result<bool, StorageError> {
         self.reader
             .contains_key(&self.storage.id2str_cf, &key.to_be_bytes())
-    }
-
-    /// Validates that all the storage invariants held in the data
-    #[cfg(not(target_family = "wasm"))]
-    pub fn validate(&self) -> Result<(), StorageError> {
-        // triples
-        let dspo_size = self.dspo_quads(&[]).count();
-        if dspo_size != self.dpos_quads(&[]).count() || dspo_size != self.dosp_quads(&[]).count() {
-            return Err(CorruptionError::new(
-                "Not the same number of triples in dspo, dpos and dosp",
-            )
-            .into());
-        }
-        for spo in self.dspo_quads(&[]) {
-            let spo = spo?;
-            self.decode_quad(&spo)?; // We ensure that the quad is readable
-            if !self.storage.db.contains_key(
-                &self.storage.dpos_cf,
-                &encode_term_triple(&spo.predicate, &spo.object, &spo.subject),
-            )? {
-                return Err(CorruptionError::new("Quad in dspo and not in dpos").into());
-            }
-            if !self.storage.db.contains_key(
-                &self.storage.dosp_cf,
-                &encode_term_triple(&spo.object, &spo.subject, &spo.predicate),
-            )? {
-                return Err(CorruptionError::new("Quad in dspo and not in dpos").into());
-            }
-        }
-
-        // quads
-        let gspo_size = self.gspo_quads(&[]).count();
-        if gspo_size != self.gpos_quads(&[]).count()
-            || gspo_size != self.gosp_quads(&[]).count()
-            || gspo_size != self.spog_quads(&[]).count()
-            || gspo_size != self.posg_quads(&[]).count()
-            || gspo_size != self.ospg_quads(&[]).count()
-        {
-            return Err(CorruptionError::new(
-                "Not the same number of triples in dspo, dpos and dosp",
-            )
-            .into());
-        }
-        for gspo in self.gspo_quads(&[]) {
-            let gspo = gspo?;
-            self.decode_quad(&gspo)?; // We ensure that the quad is readable
-            if !self.storage.db.contains_key(
-                &self.storage.gpos_cf,
-                &encode_term_quad(
-                    &gspo.graph_name,
-                    &gspo.predicate,
-                    &gspo.object,
-                    &gspo.subject,
-                ),
-            )? {
-                return Err(CorruptionError::new("Quad in gspo and not in gpos").into());
-            }
-            if !self.storage.db.contains_key(
-                &self.storage.gosp_cf,
-                &encode_term_quad(
-                    &gspo.graph_name,
-                    &gspo.object,
-                    &gspo.subject,
-                    &gspo.predicate,
-                ),
-            )? {
-                return Err(CorruptionError::new("Quad in gspo and not in gosp").into());
-            }
-            if !self.storage.db.contains_key(
-                &self.storage.spog_cf,
-                &encode_term_quad(
-                    &gspo.subject,
-                    &gspo.predicate,
-                    &gspo.object,
-                    &gspo.graph_name,
-                ),
-            )? {
-                return Err(CorruptionError::new("Quad in gspo and not in spog").into());
-            }
-            if !self.storage.db.contains_key(
-                &self.storage.posg_cf,
-                &encode_term_quad(
-                    &gspo.predicate,
-                    &gspo.object,
-                    &gspo.subject,
-                    &gspo.graph_name,
-                ),
-            )? {
-                return Err(CorruptionError::new("Quad in gspo and not in posg").into());
-            }
-            if !self.storage.db.contains_key(
-                &self.storage.ospg_cf,
-                &encode_term_quad(
-                    &gspo.object,
-                    &gspo.subject,
-                    &gspo.predicate,
-                    &gspo.graph_name,
-                ),
-            )? {
-                return Err(CorruptionError::new("Quad in gspo and not in ospg").into());
-            }
-            if !self
-                .storage
-                .db
-                .contains_key(&self.storage.graphs_cf, &encode_term(&gspo.graph_name))?
-            {
-                return Err(
-                    CorruptionError::new("Quad graph name in gspo and not in graphs").into(),
-                );
-            }
-        }
-        Ok(())
     }
 
     /// Validates that all the storage invariants held in the data
@@ -1016,22 +727,6 @@ impl<'a> StorageWriter<'a> {
         }
     }
 
-    #[cfg(not(target_family = "wasm"))]
-    fn insert_str(&mut self, key: &StrHash, value: &str) -> Result<(), StorageError> {
-        if self
-            .storage
-            .db
-            .contains_key(&self.storage.id2str_cf, &key.to_be_bytes())?
-        {
-            return Ok(());
-        }
-        self.storage.db.insert(
-            &self.storage.id2str_cf,
-            &key.to_be_bytes(),
-            value.as_bytes(),
-        )
-    }
-
     #[cfg(target_family = "wasm")]
     fn insert_str(&mut self, key: &StrHash, value: &str) -> Result<(), StorageError> {
         self.transaction.insert(
@@ -1194,340 +889,5 @@ impl<'a> StorageWriter<'a> {
             self.remove_encoded(&quad?)?;
         }
         Ok(())
-    }
-}
-
-#[cfg(not(target_family = "wasm"))]
-pub struct StorageBulkLoader {
-    storage: Storage,
-    hooks: Vec<Box<dyn Fn(u64)>>,
-    num_threads: Option<usize>,
-    max_memory_size: Option<usize>,
-}
-
-#[cfg(not(target_family = "wasm"))]
-impl StorageBulkLoader {
-    pub fn new(storage: Storage) -> Self {
-        Self {
-            storage,
-            hooks: Vec::new(),
-            num_threads: None,
-            max_memory_size: None,
-        }
-    }
-
-    pub fn set_num_threads(mut self, num_threads: usize) -> Self {
-        self.num_threads = Some(num_threads);
-        self
-    }
-
-    pub fn set_max_memory_size_in_megabytes(mut self, max_memory_size: usize) -> Self {
-        self.max_memory_size = Some(max_memory_size);
-        self
-    }
-
-    pub fn on_progress(mut self, callback: impl Fn(u64) + 'static) -> Self {
-        self.hooks.push(Box::new(callback));
-        self
-    }
-
-    #[allow(clippy::trait_duplication_in_bounds)]
-    pub fn load<EI, EO: From<StorageError> + From<EI>>(
-        &self,
-        quads: impl IntoIterator<Item = Result<Quad, EI>>,
-    ) -> Result<(), EO> {
-        let num_threads = self.num_threads.unwrap_or(2);
-        if num_threads < 2 {
-            return Err(
-                StorageError::Other("The bulk loader needs at least 2 threads".into()).into(),
-            );
-        }
-        let batch_size = if let Some(max_memory_size) = self.max_memory_size {
-            max_memory_size * 1000 / num_threads
-        } else {
-            DEFAULT_BULK_LOAD_BATCH_SIZE
-        };
-        if batch_size < 10_000 {
-            return Err(StorageError::Other(
-                "The bulk loader memory bound is too low. It needs at least 100MB".into(),
-            )
-            .into());
-        }
-        let mut threads = VecDeque::with_capacity(num_threads - 1);
-        let mut buffer = Vec::with_capacity(batch_size);
-        let done_counter = Arc::new(AtomicU64::new(0));
-        let mut done_and_displayed_counter = 0;
-        for quad in quads {
-            let quad = quad?;
-            buffer.push(quad);
-            if buffer.len() >= batch_size {
-                self.spawn_load_thread(
-                    &mut buffer,
-                    &mut threads,
-                    &done_counter,
-                    &mut done_and_displayed_counter,
-                    num_threads,
-                    batch_size,
-                )?;
-            }
-        }
-        self.spawn_load_thread(
-            &mut buffer,
-            &mut threads,
-            &done_counter,
-            &mut done_and_displayed_counter,
-            num_threads,
-            batch_size,
-        )?;
-        for thread in threads {
-            thread.join().unwrap()?;
-            self.on_possible_progress(&done_counter, &mut done_and_displayed_counter);
-        }
-        Ok(())
-    }
-
-    fn spawn_load_thread(
-        &self,
-        buffer: &mut Vec<Quad>,
-        threads: &mut VecDeque<JoinHandle<Result<(), StorageError>>>,
-        done_counter: &Arc<AtomicU64>,
-        done_and_displayed_counter: &mut u64,
-        num_threads: usize,
-        batch_size: usize,
-    ) -> Result<(), StorageError> {
-        self.on_possible_progress(done_counter, done_and_displayed_counter);
-        // We avoid to have too many threads
-        if threads.len() >= num_threads {
-            if let Some(thread) = threads.pop_front() {
-                thread.join().unwrap()?;
-                self.on_possible_progress(done_counter, done_and_displayed_counter);
-            }
-        }
-        let mut buffer_to_load = Vec::with_capacity(batch_size);
-        swap(buffer, &mut buffer_to_load);
-        let storage = self.storage.clone();
-        let done_counter_clone = Arc::clone(done_counter);
-        threads.push_back(spawn(move || {
-            FileBulkLoader::new(storage, batch_size).load(buffer_to_load, &done_counter_clone)
-        }));
-        Ok(())
-    }
-
-    fn on_possible_progress(&self, done: &AtomicU64, done_and_displayed: &mut u64) {
-        let new_counter = done.load(Ordering::Relaxed);
-        let display_step = u64::try_from(DEFAULT_BULK_LOAD_BATCH_SIZE).unwrap();
-        if new_counter / display_step > *done_and_displayed / display_step {
-            for hook in &self.hooks {
-                hook(new_counter);
-            }
-        }
-        *done_and_displayed = new_counter;
-    }
-}
-
-#[cfg(not(target_family = "wasm"))]
-struct FileBulkLoader {
-    storage: Storage,
-    id2str: HashMap<StrHash, Box<str>>,
-    quads: HashSet<EncodedQuad>,
-    triples: HashSet<EncodedQuad>,
-    graphs: HashSet<EncodedTerm>,
-}
-
-#[cfg(not(target_family = "wasm"))]
-impl FileBulkLoader {
-    fn new(storage: Storage, batch_size: usize) -> Self {
-        Self {
-            storage,
-            id2str: HashMap::with_capacity(3 * batch_size),
-            quads: HashSet::with_capacity(batch_size),
-            triples: HashSet::with_capacity(batch_size),
-            graphs: HashSet::default(),
-        }
-    }
-
-    fn load(&mut self, quads: Vec<Quad>, counter: &AtomicU64) -> Result<(), StorageError> {
-        self.encode(quads)?;
-        let size = self.triples.len() + self.quads.len();
-        self.save()?;
-        counter.fetch_add(size.try_into().unwrap(), Ordering::Relaxed);
-        Ok(())
-    }
-
-    fn encode(&mut self, quads: Vec<Quad>) -> Result<(), StorageError> {
-        for quad in quads {
-            let encoded = EncodedQuad::from(quad.as_ref());
-            if quad.graph_name.is_default_graph() {
-                if self.triples.insert(encoded.clone()) {
-                    self.insert_term(quad.subject.as_ref().into(), &encoded.subject)?;
-                    self.insert_term(quad.predicate.as_ref().into(), &encoded.predicate)?;
-                    self.insert_term(quad.object.as_ref(), &encoded.object)?;
-                }
-            } else if self.quads.insert(encoded.clone()) {
-                self.insert_term(quad.subject.as_ref().into(), &encoded.subject)?;
-                self.insert_term(quad.predicate.as_ref().into(), &encoded.predicate)?;
-                self.insert_term(quad.object.as_ref(), &encoded.object)?;
-
-                if self.graphs.insert(encoded.graph_name.clone()) {
-                    self.insert_term(
-                        match quad.graph_name.as_ref() {
-                            GraphNameRef::NamedNode(n) => n.into(),
-                            GraphNameRef::BlankNode(n) => n.into(),
-                            GraphNameRef::DefaultGraph => unreachable!(),
-                        },
-                        &encoded.graph_name,
-                    )?;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn save(&mut self) -> Result<(), StorageError> {
-        let mut to_load = Vec::new();
-
-        // id2str
-        if !self.id2str.is_empty() {
-            let mut id2str = take(&mut self.id2str)
-                .into_iter()
-                .map(|(k, v)| (k.to_be_bytes(), v))
-                .collect::<Vec<_>>();
-            id2str.sort_unstable();
-            let mut id2str_sst = self.storage.db.new_sst_file()?;
-            for (k, v) in id2str {
-                id2str_sst.insert(&k, v.as_bytes())?;
-            }
-            to_load.push((&self.storage.id2str_cf, id2str_sst.finish()?));
-        }
-
-        if !self.triples.is_empty() {
-            to_load.push((
-                &self.storage.dspo_cf,
-                self.build_sst_for_keys(
-                    self.triples.iter().map(|quad| {
-                        encode_term_triple(&quad.subject, &quad.predicate, &quad.object)
-                    }),
-                )?,
-            ));
-            to_load.push((
-                &self.storage.dpos_cf,
-                self.build_sst_for_keys(
-                    self.triples.iter().map(|quad| {
-                        encode_term_triple(&quad.predicate, &quad.object, &quad.subject)
-                    }),
-                )?,
-            ));
-            to_load.push((
-                &self.storage.dosp_cf,
-                self.build_sst_for_keys(
-                    self.triples.iter().map(|quad| {
-                        encode_term_triple(&quad.object, &quad.subject, &quad.predicate)
-                    }),
-                )?,
-            ));
-            self.triples.clear();
-        }
-
-        if !self.quads.is_empty() {
-            to_load.push((
-                &self.storage.graphs_cf,
-                self.build_sst_for_keys(self.graphs.iter().map(encode_term))?,
-            ));
-            self.graphs.clear();
-
-            to_load.push((
-                &self.storage.gspo_cf,
-                self.build_sst_for_keys(self.quads.iter().map(|quad| {
-                    encode_term_quad(
-                        &quad.graph_name,
-                        &quad.subject,
-                        &quad.predicate,
-                        &quad.object,
-                    )
-                }))?,
-            ));
-            to_load.push((
-                &self.storage.gpos_cf,
-                self.build_sst_for_keys(self.quads.iter().map(|quad| {
-                    encode_term_quad(
-                        &quad.graph_name,
-                        &quad.predicate,
-                        &quad.object,
-                        &quad.subject,
-                    )
-                }))?,
-            ));
-            to_load.push((
-                &self.storage.gosp_cf,
-                self.build_sst_for_keys(self.quads.iter().map(|quad| {
-                    encode_term_quad(
-                        &quad.graph_name,
-                        &quad.object,
-                        &quad.subject,
-                        &quad.predicate,
-                    )
-                }))?,
-            ));
-            to_load.push((
-                &self.storage.spog_cf,
-                self.build_sst_for_keys(self.quads.iter().map(|quad| {
-                    encode_term_quad(
-                        &quad.subject,
-                        &quad.predicate,
-                        &quad.object,
-                        &quad.graph_name,
-                    )
-                }))?,
-            ));
-            to_load.push((
-                &self.storage.posg_cf,
-                self.build_sst_for_keys(self.quads.iter().map(|quad| {
-                    encode_term_quad(
-                        &quad.predicate,
-                        &quad.object,
-                        &quad.subject,
-                        &quad.graph_name,
-                    )
-                }))?,
-            ));
-            to_load.push((
-                &self.storage.ospg_cf,
-                self.build_sst_for_keys(self.quads.iter().map(|quad| {
-                    encode_term_quad(
-                        &quad.object,
-                        &quad.subject,
-                        &quad.predicate,
-                        &quad.graph_name,
-                    )
-                }))?,
-            ));
-            self.quads.clear();
-        }
-
-        self.storage.db.insert_stt_files(&to_load)
-    }
-
-    fn insert_term(
-        &mut self,
-        term: TermRef<'_>,
-        encoded: &EncodedTerm,
-    ) -> Result<(), StorageError> {
-        insert_term(term, encoded, &mut |key, value| {
-            self.id2str.entry(*key).or_insert_with(|| value.into());
-            Ok(())
-        })
-    }
-
-    fn build_sst_for_keys(
-        &self,
-        values: impl Iterator<Item = Vec<u8>>,
-    ) -> Result<PathBuf, StorageError> {
-        let mut values = values.collect::<Vec<_>>();
-        values.sort_unstable();
-        let mut sst = self.storage.db.new_sst_file()?;
-        for value in values {
-            sst.insert_empty(&value)?;
-        }
-        sst.finish()
     }
 }

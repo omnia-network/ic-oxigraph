@@ -5,8 +5,6 @@ use oxsdatatypes::*;
 use std::io::{Cursor, Read};
 use std::mem::size_of;
 
-#[cfg(not(target_family = "wasm"))]
-pub const LATEST_STORAGE_VERSION: u64 = 1;
 pub const WRITTEN_TERM_MAX_SIZE: usize = size_of::<u8>() + 2 * size_of::<StrHash>();
 
 // Encoded term type blocks
