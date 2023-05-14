@@ -32,6 +32,8 @@ use rand::Rng;
 use rand::{rngs::StdRng, SeedableRng};
 use std::cell::RefCell;
 
+// This part of code in which we register a custom getrandom function is taken from https://github.com/demergent-labs/cdk_framework/blob/7e913d7ac49affad4a0bd5ee24b51b1a5d5d6096/src/act/random.rs
+
 thread_local! {
     /* flexible */ static _CDK_RNG_REF_CELL: RefCell<StdRng> = RefCell::new(SeedableRng::from_seed([0_u8; 32]));
 }
@@ -79,18 +81,19 @@ register_custom_getrandom!(custom_getrandom);
 ///
 /// thread_local! {
 ///     // Feed the RNG with a seed of 32 bytes and pass this reference to the library.
+///     // See lines above for an example of how to obtain a random seed.
 ///     /* flexible */ static _CDK_RNG_REF_CELL: RefCell<StdRng> = RefCell::new(SeedableRng::from_seed([0_u8; 32]));
 /// }
 /// 
 /// #[init]
 /// fn init() {
-///     _CDK_RNG_REF_CELL.with(|rng_ref_cell| ic_oxigraph::init(Some(rng_ref_cell)));
+///     _CDK_RNG_REF_CELL.with(ic_oxigraph::init);
 ///     // other init code
 /// }
 /// 
 /// #[post_upgrade]
 /// fn post_upgrade() {
-///     _CDK_RNG_REF_CELL.with(|rng_ref_cell| ic_oxigraph::init(Some(rng_ref_cell)));
+///     _CDK_RNG_REF_CELL.with(ic_oxigraph::init);
 ///     // other post_upgrade code like loading the stable memory into the state
 /// }
 /// ```

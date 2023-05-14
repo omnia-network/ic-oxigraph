@@ -24,27 +24,50 @@ pub fn now() -> f64 {
 ```
 
 ### Random Number Generator
-The Random Number Generator is created by calling the `init()` function. This function calls the management canister to get a random seed and registers the custom random number generator with the `getrandom` crate. This is the same approach used by [Azle](https://github.com/demergent-labs/cdk_framework/blob/main/src/act/random.rs) and the code is taken from there.
+To register the Random Number Generator you have two options:
+- (**default**) register a custom getrandom implementation by yourself and pass a `&RefCell<StdRng>` to the `init()` function, which saves it to the local state. Example:
+    ```rust
+    use ic_cdk_macros::{init, post_upgrade};
+    use ic_oxigraph;
 
-The `init()` function **must** be called in the `init` and `post_upgrade` functions of the canister that imports this library.
+    thread_local! {
+        // Feed the RNG with a seed of 32 bytes and pass this reference to the library.
+        /* flexible */ static _CDK_RNG_REF_CELL: RefCell<StdRng> = RefCell::new(SeedableRng::from_seed([0_u8; 32]));
+    }
 
-#### Example:
-```rust
-use ic_cdk_macros::{init, post_upgrade};
-use ic_oxigraph;
+    #[init]
+    fn init() {
+        _CDK_RNG_REF_CELL.with(ic_oxigraph::init);
+        // other init code
+    }
 
-#[init]
-fn init() {
-    ic_oxigraph::init();
-    // other init code
-}
+    #[post_upgrade]
+    fn post_upgrade() {
+        _CDK_RNG_REF_CELL.with(ic_oxigraph::init);
+        // other post_upgrade code like loading the stable memory into the state
+    }
+    ```
+    See [lib.rs](https://github.com/omnia-network/ic-oxigraph/blob/main/lib/src/lib.rs#L35-L71) for an example of how to register a custom getrandom implementation. See also Demergent Labs' [cdk_framework](https://github.com/demergent-labs/cdk_framework/blob/7e913d7ac49affad4a0bd5ee24b51b1a5d5d6096/src/act/random.rs) source code, from which this code has been taken.
 
-#[post_upgrade]
-fn post_upgrade() {
-    ic_oxigraph::init();
-    // other post_upgrade code like loading the stable memory into the state
-}
-```
+- enable the `internal-rng` feature, which takes care of calling the management canister to get a random seed and register a custom getrandom. Example:
+    ```rust
+    use ic_cdk_macros::{init, post_upgrade};
+    use ic_oxigraph;
+
+    #[init]
+    fn init() {
+        ic_oxigraph::init();
+        // other init code
+    }
+
+    #[post_upgrade]
+    fn post_upgrade() {
+        ic_oxigraph::init();
+        // other post_upgrade code like loading the stable memory into the state
+    }
+    ```
+
+> In both cases, the `init()` function **must** be called in the `init` and `post_upgrade` functions of the canister that imports this library.
 
 ### rust-analyzer
 If you're using [rust-analyzer](https://rust-analyzer.github.io/) in VSCode, edit this setting to target `wasm32-unknown-unknown` and have the correct autocompletion:
