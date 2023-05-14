@@ -39,3 +39,6 @@ ic-cdk-timers = "0.1.2"
 
 [package.metadata.docs.rs]
 default-target = "wasm32-unknown-unknown"
+
+[features]
+custom-rng = []

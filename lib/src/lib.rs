@@ -21,16 +21,22 @@ pub mod model {
     };
 }
 
+#[cfg(not(feature = "custom-rng"))]
 use core::time::Duration;
+#[cfg(not(feature = "custom-rng"))]
 use getrandom::{register_custom_getrandom, Error};
+#[cfg(not(feature = "custom-rng"))]
 use ic_cdk::export::candid;
-use rand::{rngs::StdRng, Rng, SeedableRng};
+#[cfg(not(feature = "custom-rng"))]
+use rand::Rng;
+use rand::{rngs::StdRng, SeedableRng};
 use std::cell::RefCell;
 
 thread_local! {
     /* flexible */ static _CDK_RNG_REF_CELL: RefCell<StdRng> = RefCell::new(SeedableRng::from_seed([0_u8; 32]));
 }
 
+#[cfg(not(feature = "custom-rng"))]
 fn custom_getrandom(buf: &mut [u8]) -> Result<(), Error> {
     _CDK_RNG_REF_CELL.with(|rng_ref_cell| {
         let mut rng = rng_ref_cell.borrow_mut();
@@ -40,6 +46,7 @@ fn custom_getrandom(buf: &mut [u8]) -> Result<(), Error> {
     Ok(())
 }
 
+#[cfg(not(feature = "custom-rng"))]
 fn rng_seed() {
     ic_cdk::spawn(async move {
         let result: ic_cdk::api::call::CallResult<(Vec<u8>,)> =
@@ -55,6 +62,42 @@ fn rng_seed() {
                 Err(err) => panic!("{:?}", err),
             };
         });
+    });
+}
+
+#[cfg(not(feature = "custom-rng"))]
+register_custom_getrandom!(custom_getrandom);
+
+/// Pass the **Random Number Generator** as a RefCell.
+///
+/// This function **must** be called in the `init` and `post_upgrade` functions of the canister that imports this library.
+///
+/// # Example
+/// ```rust
+/// use ic_cdk_macros::{init, post_upgrade};
+/// use ic_oxigraph;
+///
+/// thread_local! {
+///     // Feed the RNG with a seed of 32 bytes and pass this reference to the library.
+///     /* flexible */ static _CDK_RNG_REF_CELL: RefCell<StdRng> = RefCell::new(SeedableRng::from_seed([0_u8; 32]));
+/// }
+/// 
+/// #[init]
+/// fn init() {
+///     _CDK_RNG_REF_CELL.with(|rng_ref_cell| ic_oxigraph::init(Some(rng_ref_cell)));
+///     // other init code
+/// }
+/// 
+/// #[post_upgrade]
+/// fn post_upgrade() {
+///     _CDK_RNG_REF_CELL.with(|rng_ref_cell| ic_oxigraph::init(Some(rng_ref_cell)));
+///     // other post_upgrade code like loading the stable memory into the state
+/// }
+/// ```
+#[cfg(feature = "custom-rng")]
+pub fn init(rng: &RefCell<StdRng>) {
+    _CDK_RNG_REF_CELL.with(|rng_ref_cell| {
+        *rng_ref_cell.borrow_mut() = rng.borrow().clone();
     });
 }
 
@@ -79,14 +122,7 @@ fn rng_seed() {
 ///     // other post_upgrade code like loading the stable memory into the state
 /// }
 /// ```
-pub fn init(rng: Option<&RefCell<StdRng>>) {
-    match rng {
-        Some(rng) => _CDK_RNG_REF_CELL.with(|rng_ref_cell| {
-            *rng_ref_cell.borrow_mut() = rng.borrow().clone();
-        }),
-        None => {
-            ic_cdk_timers::set_timer(Duration::new(0, 0), rng_seed);
-            register_custom_getrandom!(custom_getrandom);
-        },
-    };
+#[cfg(not(feature = "custom-rng"))]
+pub fn init() {
+    ic_cdk_timers::set_timer(Duration::new(0, 0), rng_seed);
 }
