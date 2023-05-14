@@ -46,6 +46,14 @@ fn post_upgrade() {
 }
 ```
 
+### rust-analyzer
+If you're using [rust-analyzer](https://rust-analyzer.github.io/) in VSCode, edit this setting to target `wasm32-unknown-unknown` and have the correct autocompletion:
+```json
+{
+  "rust-analyzer.cargo.target": "wasm32-unknown-unknown"
+}
+```
+
 ### TODO
 As suggested in [this comment](https://github.com/oxigraph/oxigraph/issues/471#issuecomment-1544552518), this repository should have a script that automatically removes all the unnecessary code from original Oxigraph's repository, so that updates can be easily merged.
 

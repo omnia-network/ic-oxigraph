@@ -28,7 +28,7 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::cell::RefCell;
 
 thread_local! {
-    /* flexible */ pub static _CDK_RNG_REF_CELL: RefCell<StdRng> = RefCell::new(SeedableRng::from_seed([0_u8; 32]));
+    /* flexible */ static _CDK_RNG_REF_CELL: RefCell<StdRng> = RefCell::new(SeedableRng::from_seed([0_u8; 32]));
 }
 
 fn custom_getrandom(buf: &mut [u8]) -> Result<(), Error> {
@@ -81,6 +81,13 @@ register_custom_getrandom!(custom_getrandom);
 ///     // other post_upgrade code like loading the stable memory into the state
 /// }
 /// ```
-pub fn init() {
-    ic_cdk_timers::set_timer(Duration::new(0, 0), rng_seed);
+pub fn init(rng: Option<&RefCell<StdRng>>) {
+    match rng {
+        Some(rng) => _CDK_RNG_REF_CELL.with(|rng_ref_cell| {
+            *rng_ref_cell.borrow_mut() = rng.borrow().clone();
+        }),
+        None => {
+            ic_cdk_timers::set_timer(Duration::new(0, 0), rng_seed);
+        },
+    };
 }
