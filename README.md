@@ -32,18 +32,18 @@ To register the Random Number Generator you have two options:
 
     thread_local! {
         // Feed the RNG with a seed of 32 bytes and pass this reference to the library.
-        /* flexible */ static _CDK_RNG_REF_CELL: RefCell<StdRng> = RefCell::new(SeedableRng::from_seed([0_u8; 32]));
+        /* flexible */ static RNG_REF_CELL: RefCell<StdRng> = RefCell::new(SeedableRng::from_seed([0_u8; 32]));
     }
 
     #[init]
     fn init() {
-        _CDK_RNG_REF_CELL.with(ic_oxigraph::init);
+        RNG_REF_CELL.with(ic_oxigraph::init);
         // other init code
     }
 
     #[post_upgrade]
     fn post_upgrade() {
-        _CDK_RNG_REF_CELL.with(ic_oxigraph::init);
+        RNG_REF_CELL.with(ic_oxigraph::init);
         // other post_upgrade code like loading the stable memory into the state
     }
     ```
