@@ -30,7 +30,6 @@ use std::iter::{empty, once};
 use std::rc::Rc;
 use std::str;
 use std::time::Duration as StdDuration;
-use std::time::Instant;
 
 const REGEX_SIZE_LIMIT: usize = 1_000_000;
 
