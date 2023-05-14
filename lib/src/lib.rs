@@ -58,8 +58,6 @@ fn rng_seed() {
     });
 }
 
-register_custom_getrandom!(custom_getrandom);
-
 /// Initializes the **Random Number Generator** by asynchronously calling the management canister to obtain a random seed.
 ///
 /// This function **must** be called in the `init` and `post_upgrade` functions of the canister that imports this library.
@@ -88,6 +86,7 @@ pub fn init(rng: Option<&RefCell<StdRng>>) {
         }),
         None => {
             ic_cdk_timers::set_timer(Duration::new(0, 0), rng_seed);
+            register_custom_getrandom!(custom_getrandom);
         },
     };
 }
