@@ -35,6 +35,7 @@ sparesults = { version = "0.1.8-dev", path="sparesults", features = ["rdf-star"]
 ic-cdk = "0.7.4"
 getrandom = { version = "0.2", features = ["custom"] }
 rand_chacha = "0.3.1"
+ic-cdk-timers = "0.1.2"
 
 [package.metadata.docs.rs]
 default-target = "wasm32-unknown-unknown"

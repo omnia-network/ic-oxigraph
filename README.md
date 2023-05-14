@@ -24,36 +24,27 @@ pub fn now() -> f64 {
 ```
 
 ### Random Number Generator
-Since the randomness required doesn't need to be cryptographically secure (basically used only to generate temporary helpers and blank nodes), substituting it with the current time can be enough:
+The Random Number Generator is created by calling the `init()` function. This function calls the management canister to get a random seed and registers the custom random number generator with the `getrandom` crate. This is the same approach used by [Azle](https://github.com/demergent-labs/cdk_framework/blob/main/src/act/random.rs) and the code is taken from there.
+
+The `init()` function **must** be called in the `init` and `post_upgrade` functions of the canister that imports this library.
+
+#### Example:
 ```rust
-use core::num::NonZeroU32;
-use getrandom::{register_custom_getrandom, Error};
-use rand::Rng;
-use rand_chacha::{
-    rand_core::SeedableRng,
-    ChaCha20Rng,
-};
+use ic_cdk_macros::{init, post_upgrade};
+use ic_oxigraph;
 
-// a custom error code not well thought out
-const CUSTOM_ERROR_CODE: u32 = Error::CUSTOM_START + 1;
-
-fn getrandom_from_timestamp(buf: &mut [u8]) -> Result<(), Error> {
-    let timestamp = ic_cdk::api::time();
-    let mut rng = ChaCha20Rng::seed_from_u64(timestamp);
-
-    rng.try_fill(buf).map_err(|err| {
-        if let Some(code) = err.code() {
-            Error::from(code)
-        } else {
-            let code = NonZeroU32::new(CUSTOM_ERROR_CODE).unwrap();
-            Error::from(code)
-        }
-    })
+#[init]
+fn init() {
+    ic_oxigraph::init();
+    // other init code
 }
 
-register_custom_getrandom!(getrandom_from_timestamp);
+#[post_upgrade]
+fn post_upgrade() {
+    ic_oxigraph::init();
+    // other post_upgrade code like loading the stable memory into the state
+}
 ```
-> The problem still remains for the UUID generator, becuase the timestamp "random" generation doesn't make it compliant. As a temporary fix, it could be **removed** as a temporary fix, as suggested in [this comment](https://github.com/oxigraph/oxigraph/issues/471#issuecomment-1517703078).
 
 ## Help
 

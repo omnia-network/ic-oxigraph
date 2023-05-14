@@ -12,7 +12,7 @@ rustflags = [
     "-Wclippy::cast-lossless",
     "-Wclippy::cast-possible-truncation",
     "-Wclippy::cast-possible-wrap",
-    "-Wclippy::cast-precision-loss",
+    # Commented to avoid u64 ic_cdk::api::time cast to f64 warning: "-Wclippy::cast-precision-loss",
     "-Wclippy::cast-ptr-alignment",
     "-Wclippy::cast-sign-loss",
     "-Wclippy::checked-conversions",
