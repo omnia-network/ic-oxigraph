@@ -46,6 +46,9 @@ fn post_upgrade() {
 }
 ```
 
+### TODO
+As suggested in [this comment](https://github.com/oxigraph/oxigraph/issues/471#issuecomment-1544552518), this repository should have a script that automatically removes all the unnecessary code from original Oxigraph's repository, so that updates can be easily merged.
+
 ## Help
 
 See [Oxigraph's GitHub discussions](https://github.com/oxigraph/oxigraph/discussions) or [the Oxigraph's Gitter chat](https://gitter.im/oxigraph/community) to ask questions or talk about Oxigraph.
