@@ -1645,23 +1645,12 @@ impl Timestamp {
     }
 }
 
-#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 fn since_unix_epoch() -> Result<Duration, DateTimeError> {
     Ok(Duration::new(
         0,
         Decimal::try_from(crate::Double::from(now() / 1000.))
             .map_err(|_| DATE_TIME_OVERFLOW)?,
     ))
-}
-
-#[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
-fn since_unix_epoch() -> Result<Duration, DateTimeError> {
-    use std::time::SystemTime;
-
-    SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)?
-        .try_into()
-        .map_err(|_| DATE_TIME_OVERFLOW)
 }
 
 /// The [normalizeMonth](https://www.w3.org/TR/xmlschema11-2/#f-dt-normMo) function

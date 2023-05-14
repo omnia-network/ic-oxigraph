@@ -482,7 +482,6 @@ impl StorageReader {
         }
     }
 
-    #[cfg(target_family = "wasm")]
     pub fn get_str(&self, key: &StrHash) -> Result<Option<String>, StorageError> {
         Ok(self
             .reader
@@ -492,14 +491,12 @@ impl StorageReader {
             .map_err(CorruptionError::new)?)
     }
 
-    #[cfg(target_family = "wasm")]
     pub fn contains_str(&self, key: &StrHash) -> Result<bool, StorageError> {
         self.reader
             .contains_key(&self.storage.id2str_cf, &key.to_be_bytes())
     }
 
     /// Validates that all the storage invariants held in the data
-    #[cfg(target_family = "wasm")]
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
     pub fn validate(&self) -> Result<(), StorageError> {
         Ok(()) //TODO
@@ -727,7 +724,6 @@ impl<'a> StorageWriter<'a> {
         }
     }
 
-    #[cfg(target_family = "wasm")]
     fn insert_str(&mut self, key: &StrHash, value: &str) -> Result<(), StorageError> {
         self.transaction.insert(
             &self.storage.id2str_cf,

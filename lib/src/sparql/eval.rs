@@ -30,7 +30,6 @@ use std::iter::{empty, once};
 use std::rc::Rc;
 use std::str;
 use std::time::Duration as StdDuration;
-#[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
 use std::time::Instant;
 
 const REGEX_SIZE_LIMIT: usize = 1_000_000;
@@ -4804,12 +4803,10 @@ impl Iterator for StatsIterator {
     }
 }
 
-#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 pub struct Timer {
     timestamp_ms: f64,
 }
 
-#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 impl Timer {
     pub fn now() -> Self {
         Self {
@@ -4819,24 +4816,6 @@ impl Timer {
 
     pub fn elapsed(&self) -> StdDuration {
         StdDuration::from_secs_f64((now() - self.timestamp_ms) / 1000.)
-    }
-}
-
-#[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
-pub struct Timer {
-    instant: Instant,
-}
-
-#[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
-impl Timer {
-    pub fn now() -> Self {
-        Self {
-            instant: Instant::now(),
-        }
-    }
-
-    pub fn elapsed(&self) -> StdDuration {
-        self.instant.elapsed()
     }
 }
 
